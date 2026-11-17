@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bodega Stock — Controlo de Stock de Bar & POS</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --surface: #ffffff;
+      --sidebar: #0f172a;
+      --border: #e2e8f0;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #d97706;
+      --accent-hover: #b45309;
+      --green: #15803d;
+      --red: #b91c1c;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-variant-numeric: tabular-nums; }
+
+    /* Sidebar */
+    aside {
+      width: 240px;
+      background: var(--sidebar);
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .brand {
+      height: 64px;
+      padding: 0 20px;
+      display: flex;
+      align-items: center;
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+      border-bottom: 1px solid #1e293b;
+    }
+    nav { padding: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .nav-btn:hover { background: #1e293b; color: #fff; }
+    .nav-btn.active { background: #1e293b; color: #fff; border-left: 3px solid var(--accent); }
+
+    /* Main Layout */
+    .main-wrap { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+    header {
+      height: 64px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    main { padding: 24px 28px; max-width: 1360px; width: 100%; margin: 0 auto; }
+
+    /* Cards & Grids */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .kpi { padding: 18px 20px; border-right: 1px solid var(--border); }
+    .kpi:last-child { border-right: 0; }
+    .kpi-label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+    .kpi-val { font-size: 22px; font-weight: 700; }
+    .kpi-sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; gap: 12px; flex-wrap: wrap; }
+    .card-title { font-size: 16px; font-weight: 600; }
+
+    /* Buttons & Inputs */
+    .btn {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      cursor: pointer;
+    }
+    .btn:hover { background: #f1f5f9; }
+    .btn-primary { background: var(--sidebar); color: #fff; border-color: var(--sidebar); }
+    .btn-primary:hover { background: #1e293b; }
+    .btn-accent { background: var(--accent); color: #fff; border-color: var(--accent); }
+    .btn-accent:hover { background: var(--accent-hover); }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+
+    input, select {
+      padding: 8px 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 13px;
+      background: #fff;
+    }
+
+    /* Tables */
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th {
+      text-align: left;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-weight: 600;
+      font-size: 12px;
+    }
+    td { padding: 10px 12px; border-bottom: 1px solid #f1f5f9; }
+    .num { text-align: right; }
+    .ok { color: var(--green); font-weight: 600; }
+    .warn { color: var(--accent); font-weight: 600; }
+    .danger { color: var(--red); font-weight: 600; }
+
+    /* POS Layout */
+    .pos-grid { display: grid; grid-template-columns: 1fr 360px; gap: 20px; align-items: start; }
+    .menu-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; }
+    .menu-item {
+      background: #fff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      min-height: 112px;
+    }
+    .menu-item:hover:not(:disabled) { border-color: var(--accent); }
+    .menu-item:disabled { opacity: 0.55; cursor: not-allowed; background: #f1f5f9; }
+
+    /* Simple Bar Chart */
+    .chart-box {
+      display: flex;
+      align-items: flex-end;
+      gap: 6px;
+      height: 220px;
+      padding: 16px 8px 8px;
+      border-bottom: 1px solid var(--border);
+      overflow-x: auto;
+    }
+    .bar-col {
+      flex: 1;
+      min-width: 18px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      justify-content: flex-end;
+    }
+    .bar-fill {
+      width: 100%;
+      max-width: 26px;
+      background: var(--accent);
+      border-radius: 4px 4px 0 0;
+      transition: height 0.2s ease;
+    }
+    .bar-lbl { font-size: 10px; color: var(--muted); margin-top: 6px; }
+
+    /* Alert Box */
+    .alert { padding: 10px 14px; border-radius: 8px; font-size: 13px; margin-bottom: 14px; }
+    .alert-err { background: #fef2f2; border: 1px solid #fecaca; color: var(--red); }
+    .alert-ok { background: #f0fdf4; border: 1px solid #bbf7d0; color: var(--green); }
+
+    /* Modal */
+    .modal-backdrop {
+      position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5);
+      display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50;
+    }
+    .modal-backdrop.open { display: flex; }
+    .modal {
+      background: #fff; border-radius: 12px; width: 100%; max-width: 440px; padding: 20px;
+      border: 1px solid var(--border);
+    }
+    .form-row { margin-bottom: 12px; display: flex; flex-direction: column; gap: 4px; }
+    .form-row label { font-size: 12px; font-weight: 600; color: #334155; }
+
+    @media (max-width: 960px) {
+      body { flex-direction: column; }
+      aside { width: 100%; }
+      nav { flex-direction: row; overflow-x: auto; }
+      .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+      .pos-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <aside>
+    <div>
+      <div class="brand">Bodega Stock</div>
+      <nav>
+        <button class="nav-btn active" onclick="switchView('dashboard', this)">Dashboard</button>
+        <button class="nav-btn" onclick="switchView('pos', this)">Balcão / Vendas (POS)</button>
+        <button class="nav-btn" onclick="switchView('inventory', this)">
+          <span>Inventário</span>
+          <span id="alert-badge" class="mono" style="color:#fbbf24;"></span>
+        </button>
+        <button class="nav-btn" onclick="switchView('movements', this)">Entradas &amp; Saídas</button>
+      </nav>
+    </div>
+    <div style="padding:14px 18px; font-size:12px; color:#94a3b8; border-top:1px solid #1e293b;">
+      Armazenamento Local
+    </div>
+  </aside>
+
+  <div class="main-wrap">
+    <header>
+      <h1 id="view-title">Dashboard Financeiro &amp; Operacional</h1>
+      <div style="display:flex; gap:8px;">
+        <button class="btn btn-primary" onclick="openMovementModal()">+ Registar Entrada / Saída</button>
+      </div>
+    </header>
+
+    <main id="app-content"></main>
+  </div>
+
+  <!-- Modal Movimento de Stock -->
+  <div id="movement-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="card-header">
+        <span class="card-title">Movimento de Stock</span>
+        <button class="btn btn-sm" onclick="closeModal('movement-modal')">Fechar</button>
+      </div>
+      <form onsubmit="submitMovement(event)">
+        <div class="form-row">
+          <label>Tipo</label>
+          <select id="mov-type">
+            <option value="ENTRY">Entrada (+)</option>
+            <option value="WASTE_ADJUSTMENT">Quebra / Desperdício (-)</option>
+            <option value="MANUAL_EXIT">Saída Manual (-)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Produto</label>
+          <select id="mov-product"></select>
+        </div>
+        <div class="form-row">
+          <label>Quantidade</label>
+          <input id="mov-qty" type="number" step="any" min="0.01" required placeholder="Ex.: 700 ou 12" />
+        </div>
+        <div class="form-row">
+          <label>Motivo</label>
+          <input id="mov-reason" type="text" required value="Reposição de fornecedor" />
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+          <button type="button" class="btn" onclick="closeModal('movement-modal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Confirmar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal Novo Produto -->
+  <div id="product-modal" class="modal-backdrop">
+    <div class="modal">
+      <div class="card-header">
+        <span class="card-title">Novo Produto no Inventário</span>
+        <button class="btn btn-sm" onclick="closeModal('product-modal')">Fechar</button>
+      </div>
+      <form onsubmit="submitProduct(event)">
+        <div class="form-row">
+          <label>Nome do Produto</label>
+          <input id="prod-name" type="text" required placeholder="Ex.: Gin London Dry 700ml" />
+        </div>
+        <div class="form-row">
+          <label>Código SKU</label>
+          <input id="prod-sku" type="text" required placeholder="ESP-GIN-02" />
+        </div>
+        <div class="form-row">
+          <label>Unidade</label>
+          <select id="prod-unit">
+            <option value="ml">Mililitros (ml)</option>
+            <option value="un">Unidades (un)</option>
+            <option value="g">Gramas (g)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>Stock Inicial</label>
+          <input id="prod-stock" type="number" step="any" min="0" required value="700" />
+        </div>
+        <div class="form-row">
+          <label>Stock Mínimo</label>
+          <input id="prod-min" type="number" step="any" min="0" required value="350" />
+        </div>
+        <div class="form-row">
+          <label>Custo Unitário (€)</label>
+          <input id="prod-cost" type="number" step="0.001" min="0" required value="0.03" />
+        </div>
+        <div style="display:flex; justify-content:flex-end; gap:8px; margin-top:16px;">
+          <button type="button" class="btn" onclick="closeModal('product-modal')">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Produto</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'bodega_stock_standalone_v1';
+
+    const DEFAULT_STATE = {
+      products: [
+        { id: 'p1', sku: 'ESP-GIN-01', name: 'Gin London Dry', unit: 'ml', stock: 2800, min: 700, cost: 0.03 },
+        { id: 'p2', sku: 'CRV-BAR-01', name: 'Barril Cerveja Lager', unit: 'ml', stock: 30000, min: 5000, cost: 0.003 },
+        { id: 'p3', sku: 'CRV-IPA-33', name: 'Cerveja IPA 33cl', unit: 'un', stock: 42, min: 12, cost: 1.65 },
+        { id: 'p4', sku: 'MIX-TON-20', name: 'Água Tónica 20cl', unit: 'un', stock: 64, min: 24, cost: 0.65 },
+        { id: 'p5', sku: 'CON-LIM-01', name: 'Lima Fresca', unit: 'un', stock: 35, min: 12, cost: 0.18 }
+      ],
+      menu: [
+        {
+          id: 'm1', name: 'Gin Tónico Clássico', price: 9.50,
+          ingredients: [
+            { productId: 'p1', qty: 50 },
+            { productId: 'p4', qty: 1 },
+            { productId: 'p5', qty: 1 }
+          ]
+        },
+        {
+          id: 'm2', name: 'Imperial Lager 25cl', price: 2.80,
+          ingredients: [{ productId: 'p2', qty: 250 }]
+        },
+        {
+          id: 'm3', name: 'Cerveja IPA 33cl', price: 4.50,
+          ingredients: [{ productId: 'p3', qty: 1 }]
+        },
+        {
+          id: 'm4', name: 'Água Tónica com Lima', price: 2.80,
+          ingredients: [{ productId: 'p4', qty: 1 }, { productId: 'p5', qty: 1 }]
+        }
+      ],
+      movements: [],
+      sales: []
+    };
+
+    let state = JSON.parse(localStorage.getItem(STORAGE_KEY) || 'null') || structuredClone(DEFAULT_STATE);
+    let currentView = 'dashboard';
+    let cart = [];
+    let posMessage = null;
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateAlertBadge();
+    }
+
+    function fmtEur(v) {
+      return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(v);
+    }
+
+    function updateAlertBadge() {
+      const alerts = state.products.filter(p => p.stock <= p.min).length;
+      document.getElementById('alert-badge').textContent = alerts > 0 ? alerts : '';
+    }
+
+    function switchView(view, btn) {
+      currentView = view;
+      document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+      if (btn) btn.classList.add('active');
+      const titles = {
+        dashboard: 'Dashboard Financeiro & Operacional',
+        pos: 'Balcão / Vendas (POS)',
+        inventory: 'Inventário em Tempo Real',
+        movements: 'Entradas & Saídas'
+      };
+      document.getElementById('view-title').textContent = titles[view];
+      render();
+    }
+
+    function getServableMax(menuItem) {
+      let max = Infinity;
+      for (const ing of menuItem.ingredients) {
+        const prod = state.products.find(p => p.id === ing.productId);
+        if (!prod) return 0;
+        const inCart = cart.reduce((s, c) => {
+          const match = c.item.ingredients.find(i => i.productId === ing.productId);
+          return s + (match ? match.qty * c.qty : 0);
+        }, 0);
+        const avail = Math.max(0, prod.stock - inCart);
+        max = Math.min(max, Math.floor(avail / ing.qty));
+      }
+      return Number.isFinite(max) ? max : 0;
+    }
+
+    function addToCart(menuId) {
+      posMessage = null;
+      const item = state.menu.find(m => m.id === menuId);
+      if (!item || getServableMax(item) <= 0) return;
+      const existing = cart.find(c => c.item.id === menuId);
+      if (existing) existing.qty += 1;
+      else cart.push({ item, qty: 1 });
+      render();
+    }
+
+    function changeCartQty(menuId, delta) {
+      const idx = cart.findIndex(c => c.item.id === menuId);
+      if (idx === -1) return;
+      if (delta > 0 && getServableMax(cart[idx].item) <= 0) {
+        posMessage = { type: 'err', text: 'Stock insuficiente para adicionar mais unidades.' };
+        render();
+        return;
+      }
+      cart[idx].qty += delta;
+      if (cart[idx].qty <= 0) cart.splice(idx, 1);
+      render();
+    }
+
+    function confirmSale() {
+      if (cart.length === 0) return;
+      const required = {};
+      for (const line of cart) {
+        for (const ing of line.item.ingredients) {
+          required[ing.productId] = (required[ing.productId] || 0) + ing.qty * line.qty;
+        }
+      }
+
+      // Validar saldo antes de descontar
+      for (const [pid, qty] of Object.entries(required)) {
+        const prod = state.products.find(p => p.id === pid);
+        if (!prod || prod.stock < qty) {
+          posMessage = { type: 'err', text: `Stock insuficiente para ${prod ? prod.name : pid}.` };
+          render();
+          return;
+        }
+      }
+
+      const orderNumber = 'VND-' + String(Date.now()).slice(-6);
+      const total = cart.reduce((s, l) => s + l.item.price * l.qty, 0);
+      const nowIso = new Date().toISOString();
+
+      // Desconto automático no inventário + registo de movimentos
+      for (const [pid, qty] of Object.entries(required)) {
+        const prod = state.products.find(p => p.id === pid);
+        const before = prod.stock;
+        prod.stock = Math.round((before - qty) * 1000) / 1000;
+        state.movements.unshift({
+          id: 'mov-' + Date.now() + '-' + pid,
+          date: nowIso,
+          type: 'SALE_DEDUCTION',
+          productName: prod.name,
+          delta: -qty,
+          before,
+          after: prod.stock,
+          unit: prod.unit,
+          reason: `Desconto automático (${orderNumber})`
+        });
+      }
+
+      state.sales.unshift({
+        id: orderNumber,
+        date: nowIso,
+        total,
+        items: cart.map(l => ({ id: l.item.id, name: l.item.name, qty: l.qty, price: l.item.price }))
+      });
+
+      cart = [];
+      posMessage = { type: 'ok', text: `Venda ${orderNumber} confirmada (${fmtEur(total)}). Stock descontado.` };
+      saveState();
+      render();
+    }
+
+    function openMovementModal(productId, type = 'ENTRY') {
+      const sel = document.getElementById('mov-product');
+      sel.innerHTML = state.products.map(p =>
+        `<option value="${p.id}" ${p.id === productId ? 'selected' : ''}>${p.name} (${p.stock} ${p.unit})</option>`
+      ).join('');
+      document.getElementById('mov-type').value = type;
+      document.getElementById('mov-qty').value = '';
+      document.getElementById('movement-modal').classList.add('open');
+    }
+
+    function openProductModal() {
+      document.getElementById('product-modal').classList.add('open');
+    }
+
+    function closeModal(id) {
+      document.getElementById(id).classList.remove('open');
+    }
+
+    function submitMovement(e) {
+      e.preventDefault();
+      const pid = document.getElementById('mov-product').value;
+      const type = document.getElementById('mov-type').value;
+      const qty = Math.abs(Number(document.getElementById('mov-qty').value));
+      const reason = document.getElementById('mov-reason').value.trim();
+      const prod = state.products.find(p => p.id === pid);
+      if (!prod || qty <= 0) return;
+
+      const delta = type === 'ENTRY' ? qty : -qty;
+      if (prod.stock + delta < 0) {
+        alert('Stock insuficiente para registar esta saída.');
+        return;
+      }
+
+      const before = prod.stock;
+      prod.stock = Math.round((before + delta) * 1000) / 1000;
+      state.movements.unshift({
+        id: 'mov-' + Date.now(),
+        date: new Date().toISOString(),
+        type,
+        productName: prod.name,
+        delta,
+        before,
+        after: prod.stock,
+        unit: prod.unit,
+        reason
+      });
+
+      saveState();
+      closeModal('movement-modal');
+      render();
+    }
+
+    function submitProduct(e) {
+      e.preventDefault();
+      const stock = Number(document.getElementById('prod-stock').value) || 0;
+      const name = document.getElementById('prod-name').value.trim();
+      const unit = document.getElementById('prod-unit').value;
+      const prod = {
+        id: 'p-' + Date.now(),
+        sku: document.getElementById('prod-sku').value.trim().toUpperCase(),
+        name,
+        unit,
+        stock,
+        min: Number(document.getElementById('prod-min').value) || 0,
+        cost: Number(document.getElementById('prod-cost').value) || 0
+      };
+      state.products.push(prod);
+      if (stock > 0) {
+        state.movements.unshift({
+          id: 'mov-' + Date.now(),
+          date: new Date().toISOString(),
+          type: 'ENTRY',
+          productName: name,
+          delta: stock,
+          before: 0,
+          after: stock,
+          unit,
+          reason: 'Stock inicial de cadastro'
+        });
+      }
+      saveState();
+ 
